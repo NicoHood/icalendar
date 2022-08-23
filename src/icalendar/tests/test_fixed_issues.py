@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from icalendar.parser_tools import to_unicode
 import unittest
 
@@ -8,6 +5,8 @@ import datetime
 import icalendar
 import os
 import pytz
+
+HERE = os.path.dirname(__file__)
 
 
 class TestIssues(unittest.TestCase):
@@ -17,8 +16,7 @@ class TestIssues(unittest.TestCase):
         https://github.com/collective/icalendar/issues/53
         """
 
-        directory = os.path.dirname(__file__)
-        ics = open(os.path.join(directory, 'issue_53_parsing_failure.ics'),
+        ics = open(os.path.join(HERE, 'issue_53_parsing_failure.ics'),
                    'rb')
         cal = icalendar.Calendar.from_ical(ics.read())
         ics.close()
@@ -153,7 +151,7 @@ END:VEVENT"""
         icalendar.Event.from_ical(ical_content).to_ical()
 
     def test_issue_101(self):
-        """Issue #101 - icalender is choking on umlauts in ORGANIZER
+        """Issue #101 - icalendar is choking on umlauts in ORGANIZER
 
         https://github.com/collective/icalendar/issues/101
         """
@@ -234,8 +232,7 @@ END:VCALENDAR"""
         """Issue #112 - No timezone info on EXDATE
         https://github.com/collective/icalendar/issues/112
         """
-        directory = os.path.dirname(__file__)
-        path = os.path.join(directory,
+        path = os.path.join(HERE,
                             'issue_112_missing_tzinfo_on_exdate.ics')
         with open(path, 'rb') as ics:
             cal = icalendar.Calendar.from_ical(ics.read())
@@ -435,6 +432,18 @@ END:VCALENDAR"""
                          b'END:VEVENT\r\n'
                          )
 
+    def test_issue_356_url_escaping(self):
+        """Test that the URLs stay intact.
+
+        see https://github.com/collective/icalendar/pull/356
+        see https://github.com/collective/icalendar/issues/355
+        """
+        ics = open(os.path.join(HERE, 'issue_53_parsing_failure.ics'), 'rb')
+        cal = icalendar.Calendar.from_ical(ics)
+        event = cal.walk(name='VEVENT')[0]
+        URL = "https://www.facebook.com/events/756119502186737/?acontext=%7B%22source%22%3A5%2C%22action_history%22%3A[%7B%22surface%22%3A%22page%22%2C%22mechanism%22%3A%22main_list%22%2C%22extra_data%22%3A%22%5C%22[]%5C%22%22%7D]%2C%22has_source%22%3Atrue%7D"
+        self.assertEqual(event["DESCRIPTION"], URL)
+
     def test_issue_237(self):
         """Issue #237 - Fail to parse timezone with non-ascii TZID"""
 
@@ -471,10 +480,23 @@ END:VCALENDAR"""
         self.assertEqual(dtstart, expected)
 
         try:
-            expected_zone = str('(UTC-03:00) Brasília')
-            expected_tzname = str('Brasília standard')
+            expected_zone = '(UTC-03:00) Brasília'
+            expected_tzname = 'Brasília standard'
         except UnicodeEncodeError:
             expected_zone = '(UTC-03:00) Brasília'.encode('ascii', 'replace')
             expected_tzname = 'Brasília standard'.encode('ascii', 'replace')
         self.assertEqual(dtstart.tzinfo.zone, expected_zone)
         self.assertEqual(dtstart.tzname(), expected_tzname)
+
+    def test_issue_345(self):
+        """Issue #345 - Why is tools.UIDGenerator a class (that must be instantiated) instead of a module? """
+        uid1 = icalendar.tools.UIDGenerator.uid()
+        uid2 = icalendar.tools.UIDGenerator.uid('test.test')
+        uid3 = icalendar.tools.UIDGenerator.uid(unique='123')
+        uid4 = icalendar.tools.UIDGenerator.uid('test.test', '123')
+
+        self.assertEqual(uid1.split('@')[1], 'example.com')
+        self.assertEqual(uid2.split('@')[1], 'test.test')
+        self.assertEqual(uid3.split('-')[1], '123@example.com')
+        self.assertEqual(uid4.split('-')[1], '123@test.test')
+        
